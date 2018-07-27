@@ -1,0 +1,410 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <gsl/gsl_rng.h>
+#include <gsl/gsl_randist.h>
+#include <gsl/gsl_math.h>
+#include <time.h>
+#include <math.h>
+
+
+void caseFuncTASK1();
+void caseFuncPHYSICSPROBLEM1();
+void caseFuncPHYSICSPROBLEM2();
+//These functions call upon the different algorithims but are headed 'void' as nothing yet is being returned
+int main()
+{
+    int task;
+     //Variable used in the switch
+    printf("------------------MENU--------------\n");
+    printf("---RANDOM NUMBERS AND MONTE CARLO---\n\n");
+    printf("Task 1 (1) Generate a random number distribution proportional to a sinusoidal function.\n\n");
+    printf("Problem 1 (2) Simulate data to model a decay distribution.\n\n");
+    printf("Problem  2 (3) Determine statistical solution for a collider experiment.\n\n");
+    //A menu of the tasks which the user can choose from
+    printf("Selection: ");
+    scanf("%d", &task);
+    //The selected task triggers its respective case to run that function
+    printf("\n");
+
+    switch (task)
+    {
+
+    case 1:
+        caseFuncTASK1();
+        //Opens when task 1 is selected
+    break;
+
+    case 2:
+        caseFuncPHYSICSPROBLEM1();
+        //Opens when Problem 1 is selected
+    break;
+
+    case 3:
+        caseFuncPHYSICSPROBLEM2();
+        //Open when Problem 2 is selected
+    }
+
+    return 0;
+}
+
+
+
+void caseFuncTASK1()
+{
+    FILE *invrand, *acceptrand, *timerand;
+    //Initalise file names to call when printed too
+    invrand = fopen("invrand", "w");
+    acceptrand = fopen("acceptrand", "w");
+    timerand = fopen("timerand", "w");
+    //Open said files to be able to print too
+    const gsl_rng_type * T;
+    //Pointer towards the memory storing the type of random number distribution
+    gsl_rng * r;
+    //Pointer towards the memory storing where the generated numbers should be held
+    clock_t startI, endI, startAR, endAR;
+    //Define variables which begin and end measurment of execution time
+    int i, n = 15000;
+    /*Initialise integers, i - Integer used for counting loop iterations
+                           n - Distribution size
+    */
+    float rand, y, ymax = 1, x, pi=3.14159, timeI, timeAR, difference, accept=0, total=0;
+    /*Initialise floats, rand - Random number generated via the analytical method  between 0 and pi.
+                         y - Random number used in the accept-reject which is either inside or outside the sine function
+                         ymax - Set as the amplitude of the sine function in the accept-reject method
+                         x - Random number which is added to the distribution if paired 'y' value is accepted
+                         pi - Constant pi stored as float
+                         timeI - Execution time of the inverse function approach
+                         timeAR - Execution time of the accept-reject method
+                         difference - ratio between accepted and rejected values
+                         accept - Number of accepted values
+                         total - Number of total values in accept reject routine
+    */
+
+    gsl_rng_env_setup();
+    //Setup the random number generator
+    T = gsl_rng_default;
+    //Choose the distribtuion to be 'default' which is between 0 and 1
+    r = gsl_rng_alloc (T);
+    //The allocated variable storing the generated numbers
+
+    for(n=10000;n<=20000;n+=100)
+    //Loop over different distribution sizes
+    {
+        /*-------------------------ANALYTICAL METHOD-------------------------*/
+        i=0;
+        //Initialise condition to satisfy distribtuion size
+        startI = clock();
+        //Begin timing the routine
+        while (i<n)
+        //Keep filling the distribution until full
+            {
+                i++;
+                //Add to counter
+                rand = acos(1-(2*gsl_rng_uniform (r)));
+                //Normalised inverse sine function to produce desired distribution
+                fprintf (invrand, "%d\t%.5f\n", i, rand);
+                //Print to file the distribution of numbers
+            }
+            endI = clock();
+            //Finish timing the routine
+
+            /*-------------------------ACCEPT-REJECT METHOD-------------------------*/
+            accept=0;
+            total=0;
+            //For each distribution size loop, reinitialise counts to zero
+            startAR = clock();
+            //Start timing the routine
+            while(accept<n)
+            //Until the number of accepted values is satsified keep looping over the routine
+            {
+                x = pi*gsl_rng_uniform (r);
+                y = gsl_rng_uniform (r);
+                //Generate the random 'x' and 'y' values
+                if(y<=(ymax*sin(x)))
+                //If the 'y' value is within the sin function accept the value of 'x' to be in the distribution
+                {
+                    accept++;
+                    //Add to accept counter
+                    fprintf (acceptrand, "%.5f\n", x);
+                    //Print distribution to file
+                }
+                total++;
+                //Add to total counter
+            }
+        difference = fabs((accept/total)-0.637);
+        //Comparing the produced ratio between total values and accepted values with the theoretical ratio of (0.637)
+        endAR = clock();
+
+        timeI = ((float) (endI - startI)) / CLOCKS_PER_SEC;
+        timeAR = ((float) (endAR - startAR)) / CLOCKS_PER_SEC;
+        printf("Size: %d\tTime 1: %f\tTime 2: %f\n", n, timeI, timeAR);
+        //Print to user the Distribution size and execution time
+        fprintf(timerand, "%d\t%f\t%f\n", n, timeI, timeAR);
+        //Print to file the distribution size and execution time
+    }
+    gsl_rng_free (r);
+    //Free the rng routine once done with calling from the libraries
+    printf("\n Data printed to files 'timerand' 'acceptrand' and 'invrand'\n");
+    //Show user where to find data
+    fclose(invrand);
+    fclose(acceptrand);
+    fclose(timerand);
+    //close the files
+    return 0;
+}
+
+void caseFuncPHYSICSPROBLEM1()
+{
+   FILE *simulate;
+    simulate = fopen("simulate", "w");
+    //Open and initialise file 'simulate' located in project folder
+    const gsl_rng_type * T;
+    //Pointer towards the memory storing the type of random number distribution
+    gsl_rng * r;
+    //Pointer towards the memory storing where the generated numbers should be held
+    int n = 20000;
+    /*Initialise integers, n - Number of gamma particles hitting the detector
+    */
+    float y, ymax = 1, x=0, pi= 3.14, twopi=6.28319, halfpi=1.5706, start, end, duration, theta, phi, distance, xhit=0, yhit=0;
+    float size=3, edge, randsmear1, randsmear2, xsmear, ysmear, hitcount, efficiency, acceptangle;
+    /*Initialise floats, y - Randomly generated y coordinate for the accept reject method for decay position
+                         ymax - Exponential decay curve of the accept reject function
+                         x - Random value between 0 and 2 describing the decay position along the beam
+                         twopi - The value of the constant 2*pi in floating point precision
+                         start, end - Variables which mark the start and end of the timing process
+                         duration - Execution time of the routine
+                         theta, phi - randomly generated angles between 0 and 2*pi
+                         distance - The distance between the decay location and the detector
+                         xhit, yhit - Location at which gamma particles hit detector
+                         size - Half the length/width of the detector
+                         edge - distance from decay position to vertical position of detection
+                         randsmear1, randsmear2 - RNG for the Muller Transformations used in smearing
+                         xsmear, ysmear - Positions of smeared detections
+                         hitcount - count the number of decays that hit detector before smearing
+                         efficiency - Ratio of detected decys post and pre smearing
+                         acceptangle - generated angles have successfully hit the detector after smearing
+    */
+
+    gsl_rng_env_setup();
+    //Setup the random number generator
+    T = gsl_rng_default;
+    //Choose the distribtuion to be 'default' which is between 0 and 1
+    r = gsl_rng_alloc (T);
+    //The allocated variable storing the generated numbers
+    acceptangle=0;
+    //Initialise the number of detector hits as 0
+
+    for(n=2000;n<20000;n+=100)
+    {
+        start = clock();
+        //Begin timing the routine
+        acceptangle=0;
+        hitcount=0;
+        //Re-initialise 'acceptangle' & 'hitcount' for each experiment.
+
+    while(acceptangle<(n+1))
+    //Generate decay positions and angles until the number of detected gamma particles is satisfied
+    {
+        x = 2*gsl_rng_uniform (r);
+        //Generate random values between 0 and 2 as beam position
+        y = gsl_rng_uniform (r);
+        //Generate random values between 0 and 1 to be either accepted or rejected
+        distance = (2 - x);
+        //Define distance as being from particle position to detector screen
+
+      if(y<=(ymax*exp(-0.96*x)))
+      //Enter statement if the value of 'y' is accepted
+      {
+        theta = (gsl_rng_uniform (r)*twopi);
+        //Generate random angle between 0 and 2*pi for a given plane
+        phi = acos(1-(2*gsl_rng_uniform (r)));
+        /*Generate random angle between 0 and 2*pi for perpendicular plane.
+        These angles correspond to random directions in 3D space from the decay position*/
+
+        if((theta<=(atan(size/distance)))  || (theta>=twopi -(atan(size/distance))))
+        //First define theta as this will dictate the range of possible values of phi
+        {
+            yhit = distance*(tan(theta));
+            //Using trigonometry calculate the y-position the detection is at from the centre point
+            edge = sqrt((yhit*yhit) + (distance*distance));
+            //For a given yhit define the hypotenuse of the triangle from decay position to detector centre to yhit
+            if((phi>=halfpi - (atan(size/edge))) && (phi<= halfpi + (atan(size/edge))))
+            /*Because phi only goes between 0 and pi we must imagine the detector screen to centre at half pi for the
+            sake of symmetry. Thus these coniditions decide which values of phi are accepted for the given theta*/
+            {
+                hitcount++;
+                //Count how many decays satisfy conditions before any smearing effects are considered
+                xhit = edge*(tan(halfpi - phi));
+                //Define relative x-position on the detector
+                randsmear1 = gsl_rng_uniform (r);
+                randsmear2 = gsl_rng_uniform (r);
+                //Initialise random variables betwee 0 and 1 for the Muller Transformations
+                xsmear = xhit + 0.1*(sqrt(-2*log(randsmear1)))*(cos(twopi*randsmear2));
+                ysmear = yhit + 0.3*(sqrt(-2*log(randsmear1)))*(sin(twopi*randsmear2));
+                //Resolution smearing determined via the Muller Transformations
+                if((fabs(xsmear)<size) && (fabs(ysmear)<size))
+                //Accept only the smeared values which are still on the detector screen
+                {
+                      fprintf(simulate, "%f\t%f\n", xsmear, ysmear);
+                      //Print to file the positions of all smeared detected particles
+                      acceptangle++;
+                      //Count how many detections for the 'while' condition
+                }
+            }
+        }
+      }
+    }
+    efficiency = (acceptangle/hitcount);
+    //Define the percentage of accepted values before smearing have become unaccepted after smearing
+    end = clock();
+    //Finish timing the routine
+    duration = ((float) (end - start)) / CLOCKS_PER_SEC;
+    //Determine execution time
+    }
+    printf("\nSuccess\n\nData printed to file 'simulate.txt'\n");
+    gsl_rng_free (r);
+    //End the random number generator, free the seed position
+    fclose(simulate);
+    //Close the file being printed too
+    return 0;
+}
+
+void caseFuncPHYSICSPROBLEM2()
+{
+    FILE *stat;
+    stat = fopen("stat", "w");
+    //Initalise file names to call when printed too
+    gsl_rng_type * T;
+    //Choose the distribtuion to be 'default' which is between 0 and 1
+    gsl_rng * r;
+    //Pointer towards the memory storing where the generated numbers should be held
+    clock_t start, end;
+    //Define variables which begin and end measurment of execution time
+
+    int i, counterobserved=0, counter=0, j=0;
+    /*Initialise integers, i - Used as a looping integer
+                           counterobserved - counts the number of experiments within specific threshold
+                           counter - An alike counter for a different routine
+                           j - The number of pseudo experiments
+    */
+    float gaussBG, poissBG, poissC, CrossSec95 = 0, CrossSec05 = 0, Lumin = 10, LC = 0, total, conf95=1, conf05=0, errorLumin, duration;
+    /*Initialise floats, gaussBG - Background events error according to gaussian distribution
+                         poissBG - Using the 'gaussBG' to centre this background events according to poisson distribution
+                         poissC - Experimental events according to another poisson distributions
+                         CrossSec95 - Cross section values from routine tending towards 95% confidence
+                         CrossSec05 - Cross section values from routine tending towards 5% confidence
+                         Lumin - Luminosity value in the collider experiment
+                         LC - The product of luminosity and cross section
+                         total - Sum of events from the background and the experiment
+                         conf95 - Confidence in the 95% routine
+                         conf05 - Confidence inthe 5% routine
+                         errorLumin - A random error in luminosity value
+                         duration - Execution time of the routine
+    */
+    gsl_rng_env_setup();
+    //Setup the random number generator
+    T = gsl_rng_default;
+    //Choose the distribtuion to be 'default' which is between 0 and 1
+    r = gsl_rng_alloc (T);
+    //The allocated variable storing the generated numbers
+
+    for(j=100;j<1000;j+=20)
+    //Loop over difference number of pseudo experiments
+    {
+        CrossSec95 = 0.0001;
+        //Initialise the cross section value
+        conf95 = 0;
+        //Initialise confidence value to enter the 'while' value
+
+        /*-----------------------95% APPROACH ----------------------*/
+        while(conf95<0.95)
+        //Keep iterating over different values of cross section until condition is satisfied
+        {
+            start = clock();
+            //Begin timing routine
+            counterobserved=0;
+            counter=0;
+            //Re-initialise counters back to zero
+            for(i=0;i<j;i++)
+            //Perform 'j' pseudo experiments on any given cross section
+            {
+                counter++;
+                //Add to counter
+                errorLumin = (2*gsl_rng_uniform (r)) - 1;
+                //Define an error between -1 and +1 for luminosity
+                Lumin = 10 + errorLumin;
+                //Add the error value to the luminosity value
+                LC = (CrossSec95*Lumin);
+                //Define the produce of the cross section and the luminosity
+                gaussBG = (gsl_ran_gaussian (r, 0.4)) + 5.8;
+                //Randomly pick a number from the background error gaussian distribution
+                poissBG = (gsl_ran_poisson (r, gaussBG));
+                //Randomly pick an integer from the background events poisson distribution
+                poissC = (gsl_ran_poisson (r, LC));
+                //Randomly pick an integer from the experimental events poisson distribution
+                total = poissBG + poissC;
+                //Define the total as the sum of the two pulled integers
+                if(total > 5)
+                //If the 'total' value is larger than 5, then add to the conditional counter
+                {
+                    counterobserved++;
+                    //Add to counter
+                }
+                conf95 = ((float)counterobserved)/((float)counter);
+                //Define the confidence as the ratio between observed experiments larger than '5' and total experiment number
+            }
+            CrossSec95 = CrossSec95 + 0.0001;
+            //Change the cross section value each iteration
+            fprintf(stat, "%f\t%f\n", CrossSec95, conf95);
+            //Print to file
+        }
+        start = clock();
+        //Finish timing routine
+        duration = ((float) (end - start)) / CLOCKS_PER_SEC;
+        //Determine execution time
+        CrossSec05=1;
+        //Initialise the cross section value
+        conf05 = 0;
+        //Initialise the confidence to zero to enter the 'while' loop
+
+        /*---------------------5% APPROACH --------------------*/
+        while(conf05<0.05)
+        {
+            counterobserved=0;
+            counter=0;
+            //Re-initialise counters back to zero
+            for(i=0;i<j;i++)
+            //Complete 'j' pseudo experiments
+            {
+                counter++;
+                //Add to the counter
+                errorLumin = (2*gsl_rng_uniform (r)) - 1;
+                Lumin = 10 + errorLumin;
+                LC = (CrossSec05*Lumin);
+                gaussBG = (gsl_ran_gaussian (r, 0.4)) + 5.8;
+                poissBG = (gsl_ran_poisson (r, gaussBG));
+                poissC = (gsl_ran_poisson (r, LC));
+                total = poissBG + poissC;
+                //Variable definitions identical with '95% approach' method shown above
+
+                if(total < 5)
+                //If the 'total' value is less than 5 enter statement
+                {
+                    counterobserved++;
+                    //Add to counter
+                }
+                conf05 = ((float)counterobserved)/((float)counter);
+                //Define the confidence as the ratio between observed experiments larger than '5' and total experiment number
+            }
+            CrossSec05 = CrossSec05 - 0.01;
+            //Change the cross section value each iteration
+          }
+    }
+    printf("\nData printed to text file 'stat.txt' ");
+    //Inform location data has been printed to
+    fclose(stat);
+    //Close file
+    gsl_rng_free (r);
+    //Free the rng routine once done with calling from the libraries
+    return 0;
+}
