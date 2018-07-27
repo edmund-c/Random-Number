@@ -1,3 +1,3 @@
 # Random-Number
-Random Numbers and Monte Carlo
+Random Numbers and Monte Carlo: 
 Applied RNG using GSL libraries 
